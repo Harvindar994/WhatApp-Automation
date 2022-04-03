@@ -7,7 +7,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import *
 import urllib.request
+import pyautogui
 from PIL import Image
+import clipboard
+
 
 class ChromeBrowser(webdriver.Chrome):
     def __init__(self, user_data_dir=f"{os.path.abspath(os.getcwd())}\\Chrome\\userdata"):
@@ -46,6 +49,15 @@ class WhatsApp:
         self.XPATH_SEND_BUTTON = "//div[@id='main']/footer/div[1]/div[1]/span[2]/div[1]/div[2]/div[2]/button"
         self.XPATH_CHAT_LIST = "//div[@aria-label='Chat list']"
 
+        # Xpath for media attachment.
+        self.XPATH_ATTACH_BUTTON = "//span[@data-icon='clip']"
+        self.XPATH_ATTACH_PHOTOS_VIDEO_INPUT_FIELD = "//button[@aria-label='Photos & Videos']/input"
+        self.XPATH_ATTACH_STICKER_INPUT_FIELD = "//button[@aria-label='Sticker']/input"
+        self.XPATH_ATTACH_CAMERA_INPUT_FIELD = "//button[@aria-label='Camera']/input"
+        self.XPATH_ATTACH_DOCUMENT_INPUT_FIELD = "//button[@aria-label='Document']/input"
+        self.XPATH_ATTACH_CONTACT_INPUT_FIELD = "//button[@aria-label='Contact']/input"
+        self.XPATH_ATTACH_SEND_BUTTON = "//div[@role='button'][@aria-label='Send']"
+
         # XPATH's for Login screen (Loading window)
         self.XPATH_QR_CODE = "//canvas[@aria-label='Scan me!']"
         self.XPATH_RELOAD_QR = "//div[@class='landing-window']/div[1]/div[1]/div[2]/div[1]/span[1]/button"
@@ -75,6 +87,7 @@ class WhatsApp:
             chat_list = self.Browser.find_element(by=By.XPATH, value=self.XPATH_CHAT_LIST)
         except NoSuchElementException:
             print("Log: There is No Active Chats")
+            return None
 
         count = 1
         while True:
@@ -103,24 +116,37 @@ class WhatsApp:
             contact = {'name': name, 'image': avtar, 'element': contact_element}
             active_chats_list.append(contact)
 
-        self.active_chat_list = active_chats_list
-        return active_chats_list
+        if len(active_chats_list) > 0:
+            self.active_chat_list = active_chats_list
+            return active_chats_list
+        return None
 
-    def send_msg(self, user, message):
+    def click_on_user_profile(self, user_name):
         # First checking that if self.active_chat_lis is None then call get_active_chat_list
         if self.active_chat_list is None:
-            self.get_active_chat_list()
+            if self.get_active_chat_list() is None:
+                print("Log: There is not active chats")
+                return False
 
         # Here clicking on user to open chat area.
         for contact in self.active_chat_list:
-            if contact['name'] == user:
+            if contact['name'] == user_name:
                 contact['element'].click()
                 break
+        else:
+            print("Invalid User Name, Please Check")
+            return False
+        return True
+
+    def send_msg(self, user_name, _message):
+        # Here clicking on user to open chat area.
+        if not self.click_on_user_profile(user_name):
+            return False
 
         # Here assigning the message in message box.
         try:
             message_box = self.Browser.find_element(by=By.XPATH, value=self.XPATH_MESSAGE_BOX)
-            message_box.send_keys(message)
+            message_box.send_keys(_message)
 
         except NoSuchElementException:
             print("Log: Unable to locate message box")
@@ -131,6 +157,52 @@ class WhatsApp:
             self.Browser.find_element(by=By.XPATH, value=self.XPATH_SEND_BUTTON).click()
         except NoSuchElementException:
             print("Log: Unable to find the send button")
+            return False
+
+        return True
+
+    def send_file(self, user_name, files):
+        # Here let's first click on user profile.
+        if not self.click_on_user_profile(user_name):
+            return False
+
+        # Here let's click on attach button
+        try:
+            self.Browser.find_element(by=By.XPATH, value=self.XPATH_ATTACH_BUTTON).click()
+        except NoSuchElementException:
+            print("Log: Unable to locate attach button")
+            return False
+
+        try:
+            # Finding the document input field
+            document_input_field = self.Browser.find_element(by=By.XPATH, value=self.XPATH_ATTACH_DOCUMENT_INPUT_FIELD)
+        except NoSuchElementException:
+            print("Log: Unable to Locate Document Input Field")
+            return False
+
+        # Here attaching files using send_keys() method.
+        try:
+            if type(files) == list:
+
+                # in case there is more than one file that's why used for loop.
+                for _file in files:
+                    document_input_field.send_keys(_file)
+            else:
+                document_input_field.send_keys(files)
+        except InvalidArgumentException:
+            print("Log: Invalid file")
+            return False
+
+        # Now click on send Button.
+        """
+        After you will attach all file, some time it may take to some time to make send button visible.
+        that's it's better to use sleep function to wait for 1sec
+        """
+        time.sleep(1)
+        try:
+            self.Browser.find_element(by=By.XPATH, value=self.XPATH_ATTACH_SEND_BUTTON).click()
+        except NoSuchElementException:
+            print("Log: Unable to Locate send button")
             return False
 
         return True
@@ -226,6 +298,7 @@ while True:
     print("2. Search Element by XPath")
     print("3. Send Message")
     print("5. Save Qr Code")
+    print("6. Send File")
     print("4. Exit")
     choice = int(input("Enter Your Choice: "))
 
@@ -248,5 +321,11 @@ while True:
 
     elif choice == 5:
         print(whats_app.get_qr_code())
+
+    elif choice == 6:
+        name = input("Enter the user name: ")
+        file = input("Enter the file Name: ")
+        print(whats_app.send_file(name, file))
+
 
 whats_app.close()
