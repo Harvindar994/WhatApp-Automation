@@ -1,10 +1,12 @@
-# First import wget python module.
-import wget
+from fbs_runtime.application_context.PyQt5 import ApplicationContext
+from PyQt5.QtWidgets import QMainWindow
 
-# Set up the image URL
-image_url = "https://cdn.pixabay.com/photo/2020/02/06/09/39/summer-4823612_960_720.jpg"
+import sys
 
-# Use wget download method to download specified image url.
-image_filename = wget.download(image_url)
-
-print('Image Successfully Downloaded: ', image_filename)
+if __name__ == '__main__':
+    appctxt = ApplicationContext()       # 1. Instantiate ApplicationContext
+    window = QMainWindow()
+    window.resize(250, 150)
+    window.show()
+    exit_code = appctxt.app.exec()      # 2. Invoke appctxt.app.exec()
+    sys.exit(exit_code)
