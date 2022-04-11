@@ -40,6 +40,11 @@ class ChromeBrowser(webdriver.Chrome):
 
 
 class WhatsApp:
+    LOADING_WINDOW = 'loading_window'
+    LOGIN_WINDOW = 'login_window'
+    MAIN_WINDOW = 'main_window'
+    INVALID = 'invalid'
+
     def __init__(self):
         self.XPATH_MESSAGE_BOX = "//div[@id='main']/footer/div[1]/div[1]/span[2]/div[1]/div[2]/div[1]/div[1]/div[2]"
         self.XPATH_SEND_BUTTON = "//div[@id='main']/footer/div[1]/div[1]/span[2]/div[1]/div[2]/div[2]/button"
@@ -62,6 +67,14 @@ class WhatsApp:
         self.XPATH_ACTIVE_CONTACT_ELEMENT_NAME = "div[1]//span[@dir='auto']"
         self.XPATH_ACTIVE_CONTACT_ELEMENT_IMAGE = "div[1]/div[1]/div[1]/div[1]/div[1]/img"
 
+        # XPATH to identify the current window.
+        self.XPATH_PROGRESS_BAR = "//*[@id='app']/div/div/div[2]/progress"
+        self.XPATH_PROFILE_PICTURE = "//*[@id='side']/header/div[1]/div/img"
+
+        # Internet not connected notification xPath
+        self.XPATH_NO_INTERNET = "//*[@id='side']/span/div/div/div[1]/span"
+        self.XPATH_RECONNECT_BUTTON = '//*[@id="side"]/span/div/div/div[2]/div[2]/span/span[1]'
+
         # Dir for whatsAPP data and files.
         self.WHATSAPP_DATA_DIR = 'WhatsApp Data'
         self.TEMP_DIR = os.path.join(self.WHATSAPP_DATA_DIR, 'temp')
@@ -77,11 +90,39 @@ class WhatsApp:
         # Active chats list
         self.active_chat_list = None
 
+        # it will be holding information about whatsapp is connected to the internet or not.
+        self.isConnected = True
+
     def restart(self):
         pass
 
-    def is_running(self):
-        pass
+    def current_window(self):
+        try:
+            self.Browser.find_element(by=By.XPATH, value=self.XPATH_PROGRESS_BAR)
+            return self.LOADING_WINDOW
+        except NoSuchElementException:
+            pass
+
+        try:
+            self.Browser.find_element(by=By.XPATH, value=self.XPATH_QR_CODE)
+            return self.LOGIN_WINDOW
+        except NoSuchElementException:
+            pass
+
+        try:
+            self.Browser.find_element(by=By.XPATH, value=self.XPATH_PROFILE_PICTURE)
+            return self.MAIN_WINDOW
+        except NoSuchElementException:
+            pass
+
+        return self.INVALID
+
+    def is_logged(self):
+        try:
+            self.Browser.find_element(by=By.XPATH, value=self.XPATH_PROFILE_PICTURE)
+            return True
+        except NoSuchElementException:
+            return False
 
     def clear_chat(self, users, options=None):
         pass
@@ -355,6 +396,9 @@ class WhatsApp:
             return None
 
         return qr_code_image
+
+    def is_connected(self):
+        pass
 
     def test(self):
         element = self.Browser.find_element(by=By.XPATH, value="//span[.='Most popular']")
