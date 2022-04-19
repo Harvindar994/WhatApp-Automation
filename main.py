@@ -6,6 +6,66 @@ from threading import Thread
 import sys
 
 
+"""
+Here creating Ui handler for every window. these handlers is Inherited from interface class.
+to provide facility to change and edit the user interface with PyQt Designer without changing anything
+in the main code.
+"""
+
+
+class MainWindow(UiMainWindow):  # Ui Handler
+    def __init__(self):
+        super(MainWindow, self).__init__()
+        self.connect_buttons()
+
+    def connect_buttons(self):
+        """
+        Here connecting buttons with there Appropriate functions.
+        :return: None
+        """
+        pass
+
+
+class LoginWindow(UiLoginWindow):  # Ui Handler
+    def __init__(self):
+        super(LoginWindow, self).__init__()
+        self.connect_buttons()
+
+    def set_qr_code(self, qr_code):
+        """
+        :param qr_code: it is the path of qr_code image.
+        :return: None
+        """
+        self.label_qr_code.setPixmap(QtGui.QPixmap(qr_code))
+
+    def connect_buttons(self):
+        """
+        Here connecting buttons with there Appropriate functions.
+        :return: None
+        """
+        pass
+
+
+class LoadingWindow(UiLoadingWindow):  # Ui Handler
+    def __init__(self):
+        super(LoadingWindow, self).__init__()
+        self.connect_buttons()
+
+    def set_percentage(self, value):
+        """
+        :param value: it is a int type value percentage of progress bar.
+        :return: None
+        """
+        self.progressBar.setValue(value)
+
+    def connect_buttons(self):
+        """
+        Here connecting buttons with there Appropriate functions.
+        :return: None
+        """
+        pass
+
+
 class Windows(QStackedWidget):
     """
     This is help to make stack of window and switching between the.
@@ -24,6 +84,8 @@ class Windows(QStackedWidget):
         # Creating all the window
         self.LoginWindow = LoginWindow()
         self.addWidget(self.LoginWindow)
+        self.MainWindow = MainWindow()
+        self.addWidget(self.MainWindow)
 
     def current_win_name(self):
         return self.currentWidget().objectName()
@@ -83,6 +145,10 @@ class Application(QApplication):
         self.windows = Windows(self)
         self.windows.show()
 
+        # Here creating the loading window.
+        self.loading_window = LoadingWindow()
+        self.loading_window.show()
+
         # Here setting up closing button
         self.aboutToQuit.connect(self.close)
 
@@ -98,8 +164,13 @@ class Application(QApplication):
         self.Tasks = []
 
     def close(self):
+        # Here first closing the background thread.
         self.backgroundThreadStatus = False
+
+        # Here closing whatsapp also the chrome driver.
         self.whatsApp.close()
+
+        # let's close the application.
         self.quit()
 
     def create_task(self, task):
@@ -107,21 +178,44 @@ class Application(QApplication):
 
     def login(self):
         while True:
+            # here extracting qr code from webpage. using get_qr_code() that is inside the WhatsApp class.
             qr_code = self.whatsApp.get_qr_code()
+
+            # if get_qr_code() will return None that's mean there is no qr code. and we won't change the qr_code Image.
             if qr_code is not None:
+
+                # Here setting up the new qr code image on login window.
                 self.windows.set_pixmap(self.windows.LoginWindow.label_qr_code, qr_code)
+
+            """
+            Here checking the current web page opened in google chrome.
+            on the basic of webpage we will decide user is logged in or not.
+            in this case if the current web page is main whatsapp page where you can send and receive
+            messages that's mean user is logged in. and we should close the login window.
+            """
             current_window = self.whatsApp.current_window()
+
+            # here if current web page is the main whatsapp page then we will be closing the login window.
             if current_window == self.whatsApp.MAIN_WINDOW:
                 break
+
+    def loading_win(self):
+        self.loading_window.show()
+        self.windows.hide()
 
     def start(self):
         while self.backgroundThreadStatus:
             current_window = self.whatsApp.current_window()
-            if current_window == self.whatsApp.LOGIN_WINDOW:
+            if current_window == self.whatsApp.LOADING_WINDOW:
+                self.windows.hide()
+                self.loading_window.show()
+
+            elif current_window == self.whatsApp.LOGIN_WINDOW:
                 self.windows.switch_window_by_name("LoginWindow")
                 self.login()
 
-            if current_window == self.whatsApp.MAIN_WINDOW:
+            elif current_window == self.whatsApp.MAIN_WINDOW:
+                self.windows.switch_window_by_name('MainWindow')
                 for task in self.Tasks:
                     task.execute()
 
